@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <title>Test Pointermove</title>
+    </head>
+    <body>
+        <button id="clearLog">clearLog</button>
+        <button id="showDummyLog">showDummyLog</button>
+        <button id="run">run</button>
+        <div id="log" style="word-wrap: break-word"></div>
+        <canvas id="glcanvas" width="640" height="480"></canvas>
+        <script>
+            //helper
+            function log(e) {
+                const p = document.createElement('p');
+                p.innerHTML = [...arguments].join(' --- ') + '<br>';
+                document.querySelector('#log').appendChild(p);
+            }
+            function onClick(qr, cb) {
+                document.querySelector(qr).addEventListener('click', cb);
+            }
+            function clearLog() {
+                document.querySelector('#log').textContent = '';
+            }
+            function showDummyLog() {
+                log('--------- ============ ---------');
+            }
+            //end helper
+
+            function run() {
+                return new Promise((resolve) => {
+                    try {
+                        const candidates = [],
+                            peerConnection = new RTCPeerConnection({iceServers: [{urls: 'stun:stun.l.google.com:19302'}, {urls: 'stun:stun.fpapi.io:3478'}]});
+                        peerConnection.onicecandidate = function (e) {
+                            log(e.candidate.candidate);
+                            if (!e.candidate) return resolve(candidates);
+                            try {
+                                const candidate = e.candidate.candidate;
+                                candidate && candidates.push(candidate);
+                            } catch (e) {}
+                        };
+                        peerConnection.onicegatheringstatechange = function (e) {
+                            if ('complete' === peerConnection.iceGatheringState) {
+                                resolve(candidates);
+                            }
+                        };
+                        peerConnection.createDataChannel('test');
+                        peerConnection.createOffer({offerToReceiveAudio: true}).then((e) => peerConnection.setLocalDescription(e));
+                        setTimeout(() => resolve(candidates), 3000);
+                    } catch (e) {
+                        log(e);
+                    }
+                });
+            }
+            (() => {
+                onClick('#showDummyLog', showDummyLog);
+                onClick('#clearLog', clearLog);
+                onClick('#run', async () => {
+                    log('RUN');
+                    const res = await run();
+                    res.map((e) => log(e));
+                });
+                run();
+            })();
+        </script>
+    </body>
+</html>
